@@ -1,0 +1,270 @@
+--[[
+    Ghost Hub - Professional Roblox Script
+    Criado para fins de estudo / automação de interface.
+    Pressione RightShift para abrir/fechar o painel.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Remover instância anterior caso exista
+if game.CoreGui:FindFirstChild("GhostHubGui") then
+    game.CoreGui.GhostHubGui:Destroy()
+end
+
+-- Criar ScreenGui principal
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "GhostHubGui"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Variáveis de Estado (Configs)
+getgenv().GhostConfig = {
+    ESP_Box = false,
+    ESP_Name = false,
+    ESP_Health = false,
+    ESP_Distance = false,
+    ESP_Skeleton = false,
+    Aimbot = false,
+    AimAssist = false,
+    FOV = 100,
+    TeamCheck = true,
+    TargetPart = "Head",
+    Triggerbot = false,
+    SilentAim = false,
+    Speed = 16,
+    JumpPower = 50,
+    Fly = false,
+    Noclip = false,
+    VisibleCheck = true
+}
+
+-- Frame Principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainFrame.Size = UDim2.new(0, 500, 0, 350)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+-- Barra Superior (Topbar)
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Parent = MainFrame
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TopBar.BorderSizePixel = 0
+TopBar.Size = UDim2.new(1, 0, 0, 35)
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 8)
+TopCorner.Parent = TopBar
+
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Parent = TopBar
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 12, 0, 0)
+Title.Size = UDim2.new(0, 200, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "👻 GHOST HUB"
+Title.TextColor3 = Color3.fromRGB(160, 100, 255)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Parent = TopBar
+Subtitle.BackgroundTransparency = 1
+Subtitle.Position = UDim2.new(0, 120, 0, 0)
+Subtitle.Size = UDim2.new(0, 200, 1, 0)
+Subtitle.Font = Enum.Font.Gotham
+Subtitle.Text = "| Professional UI"
+Subtitle.TextColor3 = Color3.fromRGB(120, 120, 140)
+Subtitle.TextSize = 12
+Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Container de Abas (Menu Esquerdo)
+local TabList = Instance.new("ScrollingFrame")
+TabList.Name = "TabList"
+TabList.Parent = MainFrame
+TabList.Active = true
+TabList.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+TabList.BorderSizePixel = 0
+TabList.Position = UDim2.new(0, 0, 0, 35)
+TabList.Size = UDim2.new(0, 120, 1, -35)
+TabList.CanvasSize = UDim2.new(0, 0, 0, 0)
+TabList.ScrollBarThickness = 2
+
+local TabListLayout = Instance.new("UIListLayout")
+TabListLayout.Parent = TabList
+TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabListLayout.Padding = UDim.new(0, 4)
+
+-- Container de Conteúdo (Páginas)
+local ContainerHolder = Instance.new("Frame")
+ContainerHolder.Name = "ContainerHolder"
+ContainerHolder.Parent = MainFrame
+ContainerHolder.BackgroundTransparency = 1
+ContainerHolder.Position = UDim2.new(0, 125, 0, 40)
+ContainerHolder.Size = UDim2.new(1, -130, 1, -45)
+
+local Tabs = {}
+local CurrentTab = nil
+
+local function CreateTab(name)
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = name .. "Button"
+    TabButton.Parent = TabList
+    TabButton.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    TabButton.BorderSizePixel = 0
+    TabButton.Size = UDim2.new(1, 0, 0, 32)
+    TabButton.Font = Enum.Font.GothamSemibold
+    TabButton.Text = name
+    TabButton.TextColor3 = Color3.fromRGB(170, 170, 190)
+    TabButton.TextSize = 12
+
+    local TabPage = Instance.new("ScrollingFrame")
+    TabPage.Name = name .. "Page"
+    TabPage.Parent = ContainerHolder
+    TabPage.Active = true
+    TabPage.BackgroundTransparency = 1
+    TabPage.Size = UDim2.new(1, 0, 1, 0)
+    TabPage.Visible = false
+    TabPage.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TabPage.ScrollBarThickness = 4
+
+    local PageLayout = Instance.new("UIListLayout")
+    PageLayout.Parent = TabPage
+    PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    PageLayout.Padding = UDim.new(0, 8)
+
+    PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabPage.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
+    end)
+
+    TabButton.MouseButton1Click:Connect(function()
+        for _, tab in pairs(Tabs) do
+            tab.Page.Visible = false
+            tab.Button.TextColor3 = Color3.fromRGB(170, 170, 190)
+            tab.Button.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+        end
+        TabPage.Visible = true
+        TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+        CurrentTab = name
+    end)
+
+    if not CurrentTab then
+        TabPage.Visible = true
+        TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+        CurrentTab = name
+    end
+
+    Tabs[name] = {Button = TabButton, Page = TabPage}
+    return TabPage
+end
+
+-- Função para criar Toggle (Botão ON/OFF)
+local function CreateToggle(parent, text, configKey, callback)
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Parent = parent
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    ToggleBtn.BorderSizePixel = 0
+    ToggleBtn.Size = UDim2.new(1, -10, 0, 32)
+    ToggleBtn.Font = Enum.Font.Gotham
+    ToggleBtn.Text = "  " .. text
+    ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+    ToggleBtn.TextSize = 12
+    ToggleBtn.TextXAlignment = Enum.TextXAlignment.Left
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = ToggleBtn
+
+    local StatusIndicator = Instance.new("Frame")
+    StatusIndicator.Parent = ToggleBtn
+    StatusIndicator.AnchorPoint = Vector2.new(1, 0.5)
+    StatusIndicator.BackgroundColor3 = getgenv().GhostConfig[configKey] and Color3.fromRGB(120, 60, 255) or Color3.fromRGB(50, 50, 65)
+    StatusIndicator.Position = UDim2.new(1, -10, 0.5, 0)
+    StatusIndicator.Size = UDim2.new(0, 36, 0, 18)
+
+    local IndicatorCorner = Instance.new("UICorner")
+    IndicatorCorner.CornerRadius = UDim.new(1, 0)
+    IndicatorCorner.Parent = StatusIndicator
+
+    ToggleBtn.MouseButton1Click:Connect(function()
+        getgenv().GhostConfig[configKey] = not getgenv().GhostConfig[configKey]
+        local active = getgenv().GhostConfig[configKey]
+        StatusIndicator.BackgroundColor3 = active and Color3.fromRGB(120, 60, 255) or Color3.fromRGB(50, 50, 65)
+        if callback then callback(active) end
+    end)
+end
+
+-- ==================== CRIAÇÃO DAS ABAS ====================
+local VisualsTab = CreateTab("Visuals")
+local CombatTab = CreateTab("Combat")
+local PlayerTab = CreateTab("Player")
+local SettingsTab = CreateTab("Settings")
+
+-- Popula Aba Visuals
+CreateToggle(VisualsTab, "Player Box ESP", "ESP_Box")
+CreateToggle(VisualsTab, "Player Name ESP", "ESP_Name")
+CreateToggle(VisualsTab, "Health Bar ESP", "ESP_Health")
+CreateToggle(VisualsTab, "Distance ESP", "ESP_Distance")
+CreateToggle(VisualsTab, "Skeleton ESP", "ESP_Skeleton")
+
+-- Popula Aba Combat
+CreateToggle(CombatTab, "Aimbot", "Aimbot")
+CreateToggle(CombatTab, "Aim Assist", "AimAssist")
+CreateToggle(CombatTab, "Triggerbot", "Triggerbot")
+CreateToggle(CombatTab, "Silent Aim", "SilentAim")
+CreateToggle(CombatTab, "Team Check", "TeamCheck")
+CreateToggle(CombatTab, "Visible Check", "VisibleCheck")
+
+-- Popula Aba Player
+CreateToggle(PlayerTab, "Speed Mod (WalkSpeed)", "Speed", function(v)
+    if v then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 32
+    else
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
+    end
+end)
+CreateToggle(PlayerTab, "Fly (Voo)", "Fly")
+CreateToggle(PlayerTab, "Noclip (Atravessar Paredes)", "Noclip")
+
+-- Popula Aba Settings
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Parent = SettingsTab
+SaveBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+SaveBtn.BorderSizePixel = Instance.new("UICorner").Parent and SaveBtn or SaveBtn
+SaveBtn.Size = UDim2.new(1, -10, 0, 32)
+SaveBtn.Font = Enum.Font.GothamSemibold
+SaveBtn.Text = "💾 Salvar Configurações"
+SaveBtn.TextColor3 = Color3.fromRGB(220, 220, 255)
+SaveBtn.TextSize = 12
+Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 6)
+
+SaveBtn.MouseButton1Click:Connect(function()
+    SaveBtn.Text = "✅ Configurações Salvas!"
+    task.wait(1.5)
+    SaveBtn.Text = "💾 Salvar Configurações"
+end)
+
+-- Toggle UI Visibility with RightShift
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+print("Ghost Hub carregado com sucesso! Pressione [RightShift] para abrir/fechar o painel.")
